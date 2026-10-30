@@ -1,0 +1,37 @@
+name: LAGO 뉴스 수집
+
+on:
+  schedule:
+    - cron: "0 22 * * *"   # 매일 07:00 (한국 시간)
+    - cron: "0 7 * * *"    # 매일 16:00 (한국 시간)
+  workflow_dispatch:        # Actions 탭에서 직접 실행 (지난 기사 채우기 가능)
+    inputs:
+      backfill_days:
+        description: "지난 며칠 치도 모을지 (평소 0, 처음 한 번 30)"
+        default: "0"
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: 패키지 설치
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt
+      - name: 임베딩 모델 캐시
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-embeddinggemma-300m
+      - name: 뉴스 수집
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python collect_news.py --backfill-days "${{ github.event.inputs.backfill_days || 0 }}"
