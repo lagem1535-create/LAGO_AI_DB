@@ -111,8 +111,23 @@ def entry_date(e, default):
     return datetime(*t[:6], tzinfo=timezone.utc) if t else default
 
 
+def gnews(pub, site, ko, now, rows, report, sec="Google News"):
+    """구글 뉴스 검색 RSS로 그 언론사의 최근 하루 기사"""
+    q = urllib.parse.quote(f"site:{site} when:1d")
+    lang = "hl=ko&gl=KR&ceid=KR:ko" if ko else "hl=en-US&gl=US&ceid=US:en"
+    try:
+        ents = fetch_rss(f"https://news.google.com/rss/search?q={q}&{lang}")
+        for e in ents:
+            t = re.sub(rf"\s+-\s+{re.escape(pub)}$", "", clean(e.get("title")), flags=re.I)
+            rows.append(make_row(pub, sec, t, e["link"], entry_date(e, now), ""))
+        report.append((pub, sec, "OK", len(ents)))
+    except Exception as ex:
+        report.append((pub, sec, f"실패 {type(ex).__name__}", 0))
+    time.sleep(2)
+
+
 def collect_live(now):
-    rows, report = [], []
+    rows, report, failed = [], [], {}
     for pub, sec, url in FEEDS:
         try:
             ents = fetch_rss(url)
@@ -123,20 +138,16 @@ def collect_live(now):
             report.append((pub, sec, "OK", len(ents)))
         except Exception as ex:
             report.append((pub, sec, f"실패 {type(ex).__name__}", 0))
+            host = urllib.parse.urlsplit(url).hostname or ""
+            failed.setdefault(pub, re.sub(r"^(www|rss|feeds?|news)\.", "", host))
         time.sleep(1)
     for pub, site in GNEWS_SITES:
-        q = urllib.parse.quote(f"site:{site} when:1d")
-        lang = "hl=ko&gl=KR&ceid=KR:ko" if site in KO_SITES else "hl=en-US&gl=US&ceid=US:en"
-        url = f"https://news.google.com/rss/search?q={q}&{lang}"
-        try:
-            ents = fetch_rss(url)
-            for e in ents:
-                t = re.sub(rf"\s+-\s+{re.escape(pub)}$", "", clean(e.get("title")), flags=re.I)
-                rows.append(make_row(pub, "Google News", t, e["link"], entry_date(e, now), ""))
-            report.append((pub, "Google News", "OK", len(ents)))
-        except Exception as ex:
-            report.append((pub, "Google News", f"실패 {type(ex).__name__}", 0))
-        time.sleep(2)
+        gnews(pub, site, site in KO_SITES, now, rows, report)
+    # RSS가 막힌 언론사(예: 해외 서버에서 접속 거부)는 구글 뉴스로 대신 받기
+    done = {p for p, _ in GNEWS_SITES}
+    for pub, site in failed.items():
+        if pub not in done and site and "bbc" not in site:
+            gnews(pub, site, True, now, rows, report, sec="대신 Google News")
     return rows, report
 
 
