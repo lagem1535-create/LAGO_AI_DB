@@ -1,9 +1,9 @@
 """LAGO 뉴스 수집기 — 캐글 노트북과 GitHub Actions에서 같이 씀.
 
-  python collect_news.py                    # 평소: RSS에서 새 기사만 (매일 7시·16시)
+  python collect_news.py                    # 평소: RSS에서 새 기사만 (매일 7시·19시)
   python collect_news.py --backfill-days 30 # 처음 한 번: 지난 30일 치도 모으기
 
-저장: 허깅페이스 lagem/lago-wiki-db 의 news/ 폴더 (news.parquet, news.faiss, news.sqlite, news_info.json)
+저장: 허깅페이스 lagem/LAGO_AI_DB 의 news/ 폴더 (news.parquet, news.faiss, news.sqlite, news_info.json)
 저장하는 것: 제목 + 요약(최대 300자) + 링크 + 날짜 + 언론사. 기사 본문은 저장 안 함.
 """
 import argparse, hashlib, html, json, os, re, shutil, sqlite3, subprocess, sys, tempfile, time
@@ -15,7 +15,7 @@ import numpy as np
 import requests
 
 # ===== 설정 =====
-HF_REPO = "lagem/lago-wiki-db"
+HF_REPO = "lagem/LAGO_AI_DB"
 KEEP_DAYS = 30
 MAX_SUMMARY = 300
 EMB_MODEL = "google/embeddinggemma-300m"
