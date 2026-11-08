@@ -316,7 +316,12 @@ def main(backfill_days=0):
     con.commit(); con.close()
     json.dump({"emb_model": EMB_MODEL, "emb_dim": EMB_DIM, "updated": now.isoformat(), "count": len(rows),
                "keep_days": KEEP_DAYS}, open(work / "news_info.json", "w"), ensure_ascii=False, indent=2)
-    for f in ["news.parquet", "news.faiss", "news.sqlite", "news_info.json"]:
+    # 웹앱(Cloudflare Worker)이 바로 읽는 가벼운 최근 기사 목록 (벡터 없음, 약 0.5MB)
+    recent = [{"title": r["title"], "text": r["text"][:320], "url": r["url"], "date": r["date"], "publisher": r["publisher"]}
+              for r in rows[:800]]
+    json.dump({"updated": now.isoformat(), "count": len(recent), "items": recent},
+              open(work / "news_recent.json", "w"), ensure_ascii=False, separators=(",", ":"))
+    for f in ["news.parquet", "news.faiss", "news.sqlite", "news_info.json", "news_recent.json"]:
         api.upload_file(path_or_fileobj=str(work / f), path_in_repo=f"news/{f}", repo_id=HF_REPO, repo_type="dataset",
                         commit_message=f"news {now:%Y-%m-%d %H:%M}")
 
